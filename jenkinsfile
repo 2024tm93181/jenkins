@@ -1,0 +1,89 @@
+pipeline {
+    agent any  // Run on any available agent (slave node)
+
+    environment {
+        STAGING_SERVER = "ec2-user@staging-ec2-ip"
+        PRODUCTION_SERVER = "ec2-user@prod-ec2-ip"
+        DEPLOY_DIR = "/var/www/html"
+    }
+
+    stages {
+        stage('Checkout Code') {
+            steps {
+                git branch: 'develop', url: 'git@github.com:your-repo/project.git'
+            }
+        }
+
+        stage('Build') {
+            steps {
+                script {
+                    try {
+                        echo 'Building application...'
+                        sh './gradlew build'  // Example for a Java app
+                    } catch (Exception e) {
+                        echo "Build failed: ${e}"
+                        error "Stopping Pipeline due to build failure"
+                    }
+                }
+            }
+        }
+
+        stage('Test') {
+            steps {
+                script {
+                    try {
+                        echo 'Running tests...'
+                        sh './gradlew test'
+                    } catch (Exception e) {
+                        echo "Tests failed: ${e}"
+                        error "Stopping Pipeline due to test failures"
+                    }
+                }
+            }
+        }
+
+        stage('Deploy to Staging') {
+            steps {
+                script {
+                    try {
+                        echo "Deploying to Staging: ${STAGING_SERVER}"
+                        sh "scp -r build/* ${STAGING_SERVER}:${DEPLOY_DIR}"
+                    } catch (Exception e) {
+                        echo "Staging Deployment failed: ${e}"
+                        error "Stopping Pipeline due to Staging Deployment failure"
+                    }
+                }
+            }
+        }
+
+        stage('Approval for Production') {
+            steps {
+                input message: 'Deploy to Production?', ok: 'Yes, Deploy'
+            }
+        }
+
+        stage('Deploy to Production') {
+            steps {
+                script {
+                    try {
+                        echo "Deploying to Production: ${PRODUCTION_SERVER}"
+                        sh "scp -r build/* ${PRODUCTION_SERVER}:${DEPLOY_DIR}"
+                    } catch (Exception e) {
+                        echo "Production Deployment failed: ${e}"
+                        error "Stopping Pipeline due to Production Deployment failure"
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        failure {
+            echo "Pipeline failed. Notifying team..."
+            sh 'curl -X POST -H "Content-Type: application/json" -d \'{"text": "Jenkins Build Failed"}\' https://slack-webhook-url'
+        }
+        success {
+            echo "Deployment successful!"
+        }
+    }
+}
