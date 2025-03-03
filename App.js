@@ -8,7 +8,7 @@ import { BrowserRouter as Router, Route, Switch } from "react-router-dom";
 import Header from "./component/Header";
 import Footer from "./component/Footer";
 import ScrollToTop from "./component/ScrollToTop";
-
+fkjshfkhfg fskjgfkejgj
 // import Pages
 import Home from "./Pages/Home";
 import ReactHooks from "./Pages/ReactHooks";
